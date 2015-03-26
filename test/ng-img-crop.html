@@ -78,10 +78,16 @@
   <div>
     <button ng-click="imageDataURI=''">Reset Image</button>
   </div>
+  <div>
+      <div><label>x<input type="number" ng-model="cropInfo.x" /></label></div>
+      <div><label>y<input type="number" ng-model="cropInfo.y" /></label></div>
+      <div><label>size<input type="number" ng-model="cropInfo.size" /></label></div>
+  </div>
 
   <div ng-if="enableCrop" class="cropArea" ng-class="{'big':size=='big', 'medium':size=='medium', 'small':size=='small'}">
     <img-crop image="imageDataURI"
               result-image="$parent.resImageDataURI"
+              crop-info="cropInfo"
               change-on-fly="changeOnFly"
               area-type="{{type}}"
               area-min-size="selMinSize"
@@ -89,6 +95,7 @@
               result-image-quality="resImgQuality"
               result-image-size="resImgSize"
               on-change="onChange($dataURI)"
+              on-crop-change="onCropChange(cropInfo)"
               on-load-begin="onLoadBegin()"
               on-load-done="onLoadDone()"
               on-load-error="onLoadError()"
@@ -106,9 +113,10 @@
   <script type="text/javascript">
     angular.module('app', ['ngImgCrop'])
       .controller('Ctrl', function($scope) {
+        $scope.cropInfo = { x: 80, y: 70, size: 100 };
         $scope.size='small';
         $scope.type='circle';
-        $scope.imageDataURI='';
+        $scope.imageDataURI='test.jpg';
         $scope.resImageDataURI='';
         $scope.resImgFormat='image/png';
         $scope.resImgQuality=1;
@@ -127,6 +135,9 @@
         $scope.onLoadError=function() {
           console.log('onLoadError fired');
         };
+        $scope.onCropChange = function(cropInfo) {
+            console.log('crop changed', cropInfo);
+        }
         var handleFileSelect=function(evt) {
           var file=evt.currentTarget.files[0];
           var reader = new FileReader();

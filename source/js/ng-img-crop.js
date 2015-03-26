@@ -6,6 +6,7 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
     scope: {
       image: '=',
       resultImage: '=',
+      cropInfo: "=",
 
       changeOnFly: '=',
       areaType: '@',
@@ -15,6 +16,7 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
       resultImageQuality: '=',
 
       onChange: '&',
+      onCropChange: '&',
       onLoadBegin: '&',
       onLoadDone: '&',
       onLoadError: '&'
@@ -33,8 +35,25 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
       // Store Result Image to check if it's changed
       var storedResultImage;
 
+      var cropInfoNeedsUpdate = function(hostSource) {
+        var hostsCropInfo = cropHost.getCropInfo();
+
+        var source = hostSource ? hostsCropInfo : scope.cropInfo;
+        if (!angular.isDefined(source.size) || source.size === 0) {
+          return false;
+        }
+        return !angular.equals(hostsCropInfo, scope.cropInfo);
+      };
+
       var updateResultImage=function(scope) {
         var resultImage=cropHost.getResultImageDataURI();
+
+        var hostsCropInfo = cropHost.getCropInfo();
+        if (cropInfoNeedsUpdate(true)) {
+          angular.copy(hostsCropInfo, scope.cropInfo);
+          scope.onCropChange({cropInfo: hostsCropInfo});
+        }
+
         if(storedResultImage!==resultImage) {
           storedResultImage=resultImage;
           if(angular.isDefined(scope.resultImage)) {
@@ -99,6 +118,12 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
         cropHost.setResultImageQuality(scope.resultImageQuality);
         updateResultImage(scope);
       });
+      scope.$watch('cropInfo', function(value) {
+        if (cropInfoNeedsUpdate()) {
+          cropHost.setCropInfo(value);
+          updateResultImage(scope);
+        }
+      }, true);
 
       // Update CropHost dimensions when the directive element is resized
       scope.$watch(

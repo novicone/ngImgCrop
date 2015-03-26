@@ -2,10 +2,10 @@
  * ngImgCrop v0.3.2
  * https://github.com/alexk111/ngImgCrop
  *
- * Copyright (c) 2014 Alex Kaul
+ * Copyright (c) 2015 Alex Kaul
  * License: MIT
  *
- * Generated at Wednesday, December 3rd, 2014, 3:54:12 PM
+ * Generated at Thursday, March 26th, 2015, 12:50:59 PM
  */
 (function() {
 'use strict';
@@ -1411,6 +1411,10 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
     // Result Image quality
     var resImgQuality=null;
 
+    var cropInfo = {
+      size: 0
+    };
+
     /* PRIVATE FUNCTIONS */
 
     // Draw Scene
@@ -1425,13 +1429,15 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
         ctx.save();
 
         // and make it darker
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
         ctx.restore();
 
         // draw Area
         theArea.draw();
+
+        readCropInfo();
       }
     }
 
@@ -1459,14 +1465,29 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
         }
         elCanvas.prop('width',canvasDims[0]).prop('height',canvasDims[1]).css({'margin-left': -canvasDims[0]/2+'px', 'margin-top': -canvasDims[1]/2+'px'});
 
-        theArea.setX(ctx.canvas.width/2);
-        theArea.setY(ctx.canvas.height/2);
-        theArea.setSize(Math.min(200, ctx.canvas.width/2, ctx.canvas.height/2));
+        if (cropInfo.size == 0) {
+          cropInfo = {
+            x: ctx.canvas.width / 2,
+            y: ctx.canvas.height / 2,
+            size: Math.min(200, ctx.canvas.width/2, ctx.canvas.height/2)
+          };
+        }
+        theArea.setX(cropInfo.x);
+        theArea.setY(cropInfo.y);
+        theArea.setSize(cropInfo.size);
       } else {
         elCanvas.prop('width',0).prop('height',0).css({'margin-top': 0});
       }
 
       drawScene();
+    };
+
+    var readCropInfo = function() {
+      cropInfo = {
+        x: theArea.getX(),
+        y: theArea.getY(),
+        size: theArea.getSize()
+      }
     };
 
     /**
@@ -1527,6 +1548,24 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
           pageY=e.pageY;
         }
         theArea.processMouseUp(pageX-offset.left, pageY-offset.top);
+        drawScene();
+      }
+    };
+
+    this.getCropInfo = function() {
+      return angular.copy(cropInfo);
+    };
+
+    this.setCropInfo = function(value) {
+      if (!angular.isDefined(value.size)) {
+        return;
+      }
+      if (image == null) {
+        cropInfo = angular.copy(value);
+      } else {
+        theArea.setX(value.x);
+        theArea.setY(value.y);
+        theArea.setSize(value.size);
         drawScene();
       }
     };
@@ -1763,6 +1802,7 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
     scope: {
       image: '=',
       resultImage: '=',
+      cropInfo: "=",
 
       changeOnFly: '=',
       areaType: '@',
@@ -1772,6 +1812,7 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
       resultImageQuality: '=',
 
       onChange: '&',
+      onCropChange: '&',
       onLoadBegin: '&',
       onLoadDone: '&',
       onLoadError: '&'
@@ -1790,8 +1831,25 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
       // Store Result Image to check if it's changed
       var storedResultImage;
 
+      var cropInfoNeedsUpdate = function(hostSource) {
+        var hostsCropInfo = cropHost.getCropInfo();
+
+        var source = hostSource ? hostsCropInfo : scope.cropInfo;
+        if (!angular.isDefined(source.size) || source.size === 0) {
+          return false;
+        }
+        return !angular.equals(hostsCropInfo, scope.cropInfo);
+      };
+
       var updateResultImage=function(scope) {
         var resultImage=cropHost.getResultImageDataURI();
+
+        var hostsCropInfo = cropHost.getCropInfo();
+        if (cropInfoNeedsUpdate(true)) {
+          angular.copy(hostsCropInfo, scope.cropInfo);
+          scope.onCropChange({cropInfo: hostsCropInfo});
+        }
+
         if(storedResultImage!==resultImage) {
           storedResultImage=resultImage;
           if(angular.isDefined(scope.resultImage)) {
@@ -1856,6 +1914,12 @@ crop.directive('imgCrop', ['$timeout', 'cropHost', 'cropPubSub', function($timeo
         cropHost.setResultImageQuality(scope.resultImageQuality);
         updateResultImage(scope);
       });
+      scope.$watch('cropInfo', function(value) {
+        if (cropInfoNeedsUpdate()) {
+          cropHost.setCropInfo(value);
+          updateResultImage(scope);
+        }
+      }, true);
 
       // Update CropHost dimensions when the directive element is resized
       scope.$watch(

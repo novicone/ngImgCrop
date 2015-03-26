@@ -43,6 +43,10 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
     // Result Image quality
     var resImgQuality=null;
 
+    var cropInfo = {
+      size: 0
+    };
+
     /* PRIVATE FUNCTIONS */
 
     // Draw Scene
@@ -57,13 +61,15 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
         ctx.save();
 
         // and make it darker
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
         ctx.restore();
 
         // draw Area
         theArea.draw();
+
+        readCropInfo();
       }
     }
 
@@ -91,14 +97,29 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
         }
         elCanvas.prop('width',canvasDims[0]).prop('height',canvasDims[1]).css({'margin-left': -canvasDims[0]/2+'px', 'margin-top': -canvasDims[1]/2+'px'});
 
-        theArea.setX(ctx.canvas.width/2);
-        theArea.setY(ctx.canvas.height/2);
-        theArea.setSize(Math.min(200, ctx.canvas.width/2, ctx.canvas.height/2));
+        if (cropInfo.size == 0) {
+          cropInfo = {
+            x: ctx.canvas.width / 2,
+            y: ctx.canvas.height / 2,
+            size: Math.min(200, ctx.canvas.width/2, ctx.canvas.height/2)
+          };
+        }
+        theArea.setX(cropInfo.x);
+        theArea.setY(cropInfo.y);
+        theArea.setSize(cropInfo.size);
       } else {
         elCanvas.prop('width',0).prop('height',0).css({'margin-top': 0});
       }
 
       drawScene();
+    };
+
+    var readCropInfo = function() {
+      cropInfo = {
+        x: theArea.getX(),
+        y: theArea.getY(),
+        size: theArea.getSize()
+      }
     };
 
     /**
@@ -163,6 +184,23 @@ crop.factory('cropHost', ['$document', 'cropAreaCircle', 'cropAreaSquare', 'crop
       }
     };
 
+    this.getCropInfo = function() {
+      return angular.copy(cropInfo);
+    };
+
+    this.setCropInfo = function(value) {
+      if (!angular.isDefined(value.size)) {
+        return;
+      }
+      if (image == null) {
+        cropInfo = angular.copy(value);
+      } else {
+        theArea.setX(value.x);
+        theArea.setY(value.y);
+        theArea.setSize(value.size);
+        drawScene();
+      }
+    };
 
     this.getResultImageDataURI=function() {
       var temp_ctx, temp_canvas;
